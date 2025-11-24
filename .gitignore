@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.pyc
+tfidf_matrix.pkl
+vectorizer.pkl
+.DS_Store
+data/*.csv
