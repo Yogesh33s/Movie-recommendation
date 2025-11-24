@@ -1,3 +1,4 @@
+
 # Movie Recommender (TF-IDF + Cosine Similarity)
 
 Run locally:
@@ -6,3 +7,6 @@ Run locally:
 3. Put tmdb_5000_movies.csv into data/
 4. python model.py
 5. streamlit run app.py
+=======
+# Movie-recommendation
+
