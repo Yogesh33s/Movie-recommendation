@@ -86,7 +86,7 @@ LOCAL_CSV_PATH = "/mnt/data/tmdb_5000_movies.csv"  # local file you uploaded ear
 def load_local_csv(path):
 
 # ---------- Data loading ----------
-LOCAL_UPLOADED_CSV = "/mnt/data/tmdb_5000_movies.csv"
+
 DATA_PATH_IN_REPO = os.path.join("data", "tmdb_5000_movies.csv")
 
 def get_data_path():
