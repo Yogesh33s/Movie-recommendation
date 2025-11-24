@@ -5,14 +5,13 @@ import wikipedia
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
-<<<<<<< HEAD
-=======
+
 from model import ensure_model, recommend
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
+
 
 st.set_page_config(page_title="Movie Recommender — Wikipedia (fast)", layout="wide")
 
-<<<<<<< HEAD
+
 # -----------------------------
 # Fast Wikipedia recommender (cached)
 # -----------------------------
@@ -85,7 +84,7 @@ LOCAL_CSV_PATH = "/mnt/data/tmdb_5000_movies.csv"  # local file you uploaded ear
 
 @st.cache_data(show_spinner=False)
 def load_local_csv(path):
-=======
+
 # ---------- Data loading ----------
 LOCAL_UPLOADED_CSV = "/mnt/data/tmdb_5000_movies.csv"
 DATA_PATH_IN_REPO = os.path.join("data", "tmdb_5000_movies.csv")
@@ -96,14 +95,14 @@ def get_data_path():
     return DATA_PATH_IN_REPO
 
 def load_df_from_path(path):
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
+
     df = pd.read_csv(path)
     df["overview"] = df.get("overview", "").fillna("").astype(str)
     df["title"] = df.get("title", "").fillna("").astype(str)
     df["title_lower"] = df["title"].str.lower()
     return df
 
-<<<<<<< HEAD
+
 @st.cache_data(show_spinner=False)
 def build_tfidf_from_df(df):
     tfidf = TfidfVectorizer(stop_words="english", max_features=20000)
@@ -142,9 +141,9 @@ user_input = st.text_input("Enter movie title (typos OK):").strip()
 
 st.markdown("### 3) Number of recommendations")
 num_text = st.text_input("Enter number (1-10)", value="05", max_chars=2)
-=======
+
 data_path = get_data_path()
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
+
 try:
     num_val = int(num_text)
 except:
@@ -152,7 +151,7 @@ except:
 num_val = max(1, min(10, num_val))
 st.write(f"Selected: [{num_val:02d}]")
 
-<<<<<<< HEAD
+
 st.markdown("---")
 st.write("Optional: Use local uploaded dataset (only if you want CSV-based recommendations).")
 use_local = st.checkbox("Use local CSV dataset (fallback)", value=False)
@@ -173,7 +172,7 @@ if use_local:
     else:
         st.warning(f"Local CSV not found at {LOCAL_CSV_PATH}. Uncheck 'Use local CSV dataset' to use Wikipedia-only.")
         use_local = False
-=======
+
 # ---------- Model ----------
 tfidf, tfidf_matrix = ensure_model(df)
 
@@ -216,7 +215,7 @@ if st.button("Recommend"):
             except Exception as e:
                 st.error(str(e))
                 recs = []
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
+
 
 # Recommend action
 if st.button("Recommend"):
@@ -247,11 +246,11 @@ if st.button("Recommend"):
 
         # Display results
         if recs:
-<<<<<<< HEAD
+
             st.success(f"Top {num_val} recommendations for **{user_input}** — source: {src}")
-=======
+
             st.success(f"Top {num_val} recommendations for **{chosen}**")
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
+
             for i, r in enumerate(recs, start=1):
                 st.subheader(f"{i}. {r['title']}  —  score {r['score']:.3f}")
                 st.write(r.get("overview", "")[:700] + ("..." if len(r.get("overview", "")) > 700 else ""))
@@ -259,11 +258,11 @@ if st.button("Recommend"):
         else:
             st.info("No recommendations found. Try another title or try enabling the local CSV (if you have it).")
 
-<<<<<<< HEAD
+
 st.markdown("---")
 st.caption(f"Local dataset file (optional, not required): `{LOCAL_CSV_PATH}`")
-=======
+
 # ---------- Optional: dataset sample ----------
 with st.expander("Show dataset sample"):
     st.dataframe(df.head(10))
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
+
