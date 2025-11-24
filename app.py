@@ -1,22 +1,13 @@
-# app.py
-import os
 import streamlit as st
 import wikipedia
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import pandas as pd
-<<<<<<< HEAD
-=======
-from model import ensure_model, recommend
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
 
-st.set_page_config(page_title="Movie Recommender — Wikipedia (fast)", layout="wide")
+st.set_page_config(page_title="Movie Recommendation — Wikipedia", layout="wide")
 
-<<<<<<< HEAD
-# -----------------------------
-# Fast Wikipedia recommender (cached)
-# -----------------------------
-# Cache fetched summaries to avoid repeated network calls
+# -------------------------------------------------------------
+# Cached Wikipedia summary fetch
+# -------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def fetch_wiki_summary(title, sentences=2):
     try:
@@ -24,33 +15,28 @@ def fetch_wiki_summary(title, sentences=2):
     except Exception:
         return None
 
+
+# -------------------------------------------------------------
+# FAST Wikipedia Recommendation (NO CSV)
+# -------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def fast_recommend_from_wikipedia(query_title, top_n=5, max_candidates=20):
-    """
-    Fast Wikipedia-only recommendations:
-      - get source summary for query_title
-      - use wikipedia.search to get candidate titles (fast)
-      - fetch short summaries for top candidates
-      - compute TF-IDF on source + candidates and return top_n similar
-    """
     out = []
     try:
         source_summary = wikipedia.summary(query_title, sentences=4)
     except Exception as e:
         return out, f"Wikipedia lookup failed for '{query_title}': {e}"
 
-    # get candidate titles quickly (no heavy page() calls)
     try:
         candidate_titles = wikipedia.search(query_title, results=max_candidates)
     except Exception as e:
         candidate_titles = []
 
-    # remove exact match from candidates (we already have source_summary)
     candidate_titles = [t for t in candidate_titles if t.lower() != query_title.lower()]
 
-    # fetch short summaries (cached)
     candidate_texts = []
     candidate_tuples = []
+
     for t in candidate_titles:
         s = fetch_wiki_summary(t, sentences=2)
         if s:
@@ -58,9 +44,8 @@ def fast_recommend_from_wikipedia(query_title, top_n=5, max_candidates=20):
             candidate_tuples.append((t, s))
 
     if not candidate_tuples:
-        return out, "No candidate summaries found on Wikipedia."
+        return out, "No related Wikipedia pages found."
 
-    # TF-IDF and similarity (fit on small set)
     texts = [source_summary] + candidate_texts
     tfidf = TfidfVectorizer(stop_words="english", max_features=8000)
     X = tfidf.fit_transform(texts)
@@ -73,197 +58,62 @@ def fast_recommend_from_wikipedia(query_title, top_n=5, max_candidates=20):
     for i in idxs:
         title, summary = candidate_tuples[i]
         score = float(cosines[i])
-        out.append({"title": title, "overview": summary, "score": score})
+        out.append({
+            "title": title,
+            "overview": summary,
+            "score": score
+        })
 
     return out, None
 
-# -----------------------------
-# Optional local CSV-based recommender
-# (only used if user enables it)
-# -----------------------------
-LOCAL_CSV_PATH = "/mnt/data/tmdb_5000_movies.csv"  # local file you uploaded earlier
 
-@st.cache_data(show_spinner=False)
-def load_local_csv(path):
-=======
-# ---------- Data loading ----------
-LOCAL_UPLOADED_CSV = "/mnt/data/tmdb_5000_movies.csv"
-DATA_PATH_IN_REPO = os.path.join("data", "tmdb_5000_movies.csv")
+# -------------------------------------------------------------
+# UI Layout
+# -------------------------------------------------------------
+st.title("🎬 Movie Recommendation — Wikipedia-based")
 
-def get_data_path():
-    if os.path.exists(LOCAL_UPLOADED_CSV):
-        return LOCAL_UPLOADED_CSV
-    return DATA_PATH_IN_REPO
+st.write(
+    "This system uses **Wikipedia searches and summaries** to find closely related movies or titles. "
+    "No dataset or CSV is required."
+)
 
-def load_df_from_path(path):
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
-    df = pd.read_csv(path)
-    df["overview"] = df.get("overview", "").fillna("").astype(str)
-    df["title"] = df.get("title", "").fillna("").astype(str)
-    df["title_lower"] = df["title"].str.lower()
-    return df
+# ---------------- Industry Filter (Heuristic only) -----------
+st.subheader("1) Industry (affects heuristics slightly)")
+industry = st.radio("Industry", ["All", "Hollywood", "Bollywood"], horizontal=True)
 
-<<<<<<< HEAD
-@st.cache_data(show_spinner=False)
-def build_tfidf_from_df(df):
-    tfidf = TfidfVectorizer(stop_words="english", max_features=20000)
-    matrix = tfidf.fit_transform(df["overview"].astype(str).fillna(""))
-    return tfidf, matrix
+# ---------------------- Movie Input --------------------------
+st.subheader("2) Search (typos accepted)")
+movie_query = st.text_input("Enter movie name")
 
-def recommend_from_local_csv(title, df, tfidf, matrix, top_n=5):
-    title_l = title.lower().strip()
-    row = df[df["title_lower"] == title_l]
-    if row.empty:
-        raise ValueError(f"Movie '{title}' not found in local dataset.")
-    idx = row.index[0]
-    movie_vec = tfidf.transform([df.loc[idx, "overview"]])
-    cosines = cosine_similarity(movie_vec, matrix).flatten()
-    top_indices = cosines.argsort()[::-1][1:top_n+1]  # skip self
-    recs = []
-    for i in top_indices:
-        recs.append({
-            "title": df.loc[i, "title"],
-            "overview": df.loc[i, "overview"],
-            "score": float(cosines[i])
-        })
-    return recs
+# ---------------------- Number of Recs ------------------------
+st.subheader("3) Number of recommendations")
+num_text = st.text_input("Enter number (1-10):", value="05", max_chars=2)
 
-# -----------------------------
-# Streamlit UI
-# -----------------------------
-st.title("🎬 Movie Recommendation — Wikipedia-based (fast)")
-st.write("This app finds movie recommendations using **Wikipedia** summaries (fast, cached). Optional: use a local CSV if you explicitly enable it.")
-
-st.markdown("### 1) Industry (affects heuristics; optional)")
-industry = st.radio("Industry", options=["All", "Hollywood", "Bollywood"], index=0, horizontal=True)
-
-st.markdown("### 2) Search (typos accepted)")
-user_input = st.text_input("Enter movie title (typos OK):").strip()
-
-st.markdown("### 3) Number of recommendations")
-num_text = st.text_input("Enter number (1-10)", value="05", max_chars=2)
-=======
-data_path = get_data_path()
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
-try:
-    num_val = int(num_text)
-except:
-    num_val = 5
-num_val = max(1, min(10, num_val))
-st.write(f"Selected: [{num_val:02d}]")
-
-<<<<<<< HEAD
-st.markdown("---")
-st.write("Optional: Use local uploaded dataset (only if you want CSV-based recommendations).")
-use_local = st.checkbox("Use local CSV dataset (fallback)", value=False)
-
-# If local requested but file missing, warn
-local_df = None
-local_tfidf = None
-local_matrix = None
-if use_local:
-    if os.path.exists(LOCAL_CSV_PATH):
-        try:
-            with st.spinner("Loading local dataset..."):
-                local_df = load_local_csv(LOCAL_CSV_PATH)
-                local_tfidf, local_matrix = build_tfidf_from_df(local_df)
-        except Exception as e:
-            st.error(f"Failed to load local CSV: {e}")
-            use_local = False
-    else:
-        st.warning(f"Local CSV not found at {LOCAL_CSV_PATH}. Uncheck 'Use local CSV dataset' to use Wikipedia-only.")
-        use_local = False
-=======
-# ---------- Model ----------
-tfidf, tfidf_matrix = ensure_model(df)
-
-# ---------- Header ----------
-st.title("🎬 Movie Recommendation System")
-st.write("Content-Based | TF-IDF | Cosine Similarity")
-
-# ---------- Input: Only manual text input (no dropdown) ----------
-st.write("Type the movie title exactly as in the dataset (or paste it).")
-manual_input = st.text_input("Enter movie title:")
-
-# ---------- Number of recommendations box (display like 05) ----------
-# We'll use a small text box, validate and convert to integer in range 1-10.
-num_text = st.text_input("Number of recommendations (01-10)", value="05", max_chars=2)
-# sanitize input
 try:
     num_val = int(num_text)
 except:
     num_val = 5
 
-# clamp the number
-if num_val < 1:
-    num_val = 1
-if num_val > 10:
-    num_val = 10
+num_val = max(1, min(num_val, 10))
+st.write(f"Selected: **[{num_val:02d}]**")
 
-# display formatted value back to user (two digits)
-# Note: we don't overwrite until user updates again; but show the chosen value below
-st.write(f"Selected: [{num_val:02d}]")
-
-# ---------- Recommend button with spinner ----------
+# ---------------------- Recommend Button ----------------------
 if st.button("Recommend"):
-    chosen = manual_input.strip()
-    if chosen == "":
-        st.warning("Please type a movie title in the input box.")
+    if movie_query.strip() == "":
+        st.error("Please enter a movie name.")
     else:
-        with st.spinner("Searching...."):
-            try:
-                recs = recommend(chosen, df, tfidf, tfidf_matrix, top_n=num_val)
-            except Exception as e:
-                st.error(str(e))
-                recs = []
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
+        with st.spinner("Searching Wikipedia..."):
+            results, err = fast_recommend_from_wikipedia(movie_query, top_n=num_val)
 
-# Recommend action
-if st.button("Recommend"):
-    if user_input == "":
-        st.warning("Please enter a movie title.")
-    else:
-        with st.spinner("Searching...."):
-            # If user opted to use local CSV and it's available
-            if use_local and local_df is not None:
-                try:
-                    recs = recommend_from_local_csv(user_input, local_df, local_tfidf, local_matrix, top_n=num_val)
-                    src = f"Local CSV: {os.path.basename(LOCAL_CSV_PATH)}"
-                except Exception as e:
-                    # fallback to Wikipedia if local fails
-                    recs = []
-                    st.info(f"Local CSV fallback: {e} — switching to Wikipedia-based recommendations.")
-                    recs, err = fast_recommend_from_wikipedia(user_input, top_n=num_val, max_candidates=20)
-                    if err:
-                        st.error(err)
-                    src = "Wikipedia (fallback)"
-            else:
-                # Use fast Wikipedia recommender
-                recs, err = fast_recommend_from_wikipedia(user_input, top_n=num_val, max_candidates=20)
-                if err:
-                    st.error(err)
-                    recs = []
-                src = "Wikipedia"
-
-        # Display results
-        if recs:
-<<<<<<< HEAD
-            st.success(f"Top {num_val} recommendations for **{user_input}** — source: {src}")
-=======
-            st.success(f"Top {num_val} recommendations for **{chosen}**")
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
-            for i, r in enumerate(recs, start=1):
-                st.subheader(f"{i}. {r['title']}  —  score {r['score']:.3f}")
-                st.write(r.get("overview", "")[:700] + ("..." if len(r.get("overview", "")) > 700 else ""))
-                st.markdown("---")
+        if err:
+            st.error(err)
         else:
-            st.info("No recommendations found. Try another title or try enabling the local CSV (if you have it).")
+            st.success(f"Top {num_val} recommendations for: **{movie_query}**")
 
-<<<<<<< HEAD
-st.markdown("---")
-st.caption(f"Local dataset file (optional, not required): `{LOCAL_CSV_PATH}`")
-=======
-# ---------- Optional: dataset sample ----------
-with st.expander("Show dataset sample"):
-    st.dataframe(df.head(10))
->>>>>>> 71538f916db9eaaf1bafb7f2fa890a54ef870456
+            for i, r in enumerate(results, start=1):
+                st.markdown(f"### {i}. **{r['title']}** — score `{r['score']:.3f}`")
+                st.write(r["overview"])
+                st.write("---")
+
+# ---------------- Note ----------------
+st.caption("Using Wikipedia only — no CSV file required.")
